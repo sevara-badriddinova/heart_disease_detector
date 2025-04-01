@@ -7,6 +7,14 @@ import joblib
 model = joblib.load("heart_disease_rf_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
+feature_names = joblib.load("features.pkl")
+# Set default ECG values as the mean values from training set
+default_ecg_values = [
+    12.28, 12.28, 12.28, 12.28, 12.28,
+    12.28, 12.28, 12.28, 189.63, 1148.07,
+    153.09, 0.15, 0.0, 0.04, 0.0  # replaced NaNs with 0.0
+]
+
 st.set_page_config(page_title="Heart Disease Risk Detector", layout="centered")
 st.title("❤️ Heart Disease Risk Detector")
 st.markdown("Upload ECG features and patient info **OR** manually enter the data below.")
@@ -24,13 +32,15 @@ manual_input = st.checkbox("Manually enter patient data")
 
 if manual_input:
     age = st.number_input("🧓 Age", min_value=1, max_value=120, step=1)
+    if age < 29 or age > 77:
+        st.warning("Note: This age is outside the range of training data (29–77). Prediction may be inaccurate.")
     sex = st.selectbox("🧬 Sex", ["Male", "Female"])
     chol = st.number_input("🩸 Cholesterol (mg/dl)", min_value=100, max_value=600, step=1)
     ecg_result = st.selectbox("📈 ECG Result", [0, 1, 2])
 
     if st.button("🔍 Predict from Manual Input"):
         sex_bin = 1 if sex == "Male" else 0
-        ecg_input = [11]*15  # Placeholder ECG values
+        ecg_input = default_ecg_values
 
         input_data = pd.DataFrame([[
             *ecg_input, age, sex_bin, 0, 120, chol, 0, 0, 150, 0, 1.0, 1, 0, 1
@@ -47,6 +57,10 @@ if manual_input:
         risk_level = "High" if prediction == 1 else "Low"
         color = "red" if prediction == 1 else "green"
 
+        prob = model.predict_proba(input_scaled)[0][1]
+        if 0.4 < prob < 0.6:
+            st.warning("⚠️ The model is unsure about this prediction. Consider reviewing inputs or using more data.")
+        st.markdown(f"**Risk Probability:** {prob:.2%}")
         st.markdown("## 🧾 Patient Risk Assessment")
         st.markdown(f"**Heart Disease Risk Level:** <span style='color:{color}; font-weight:bold;'>{risk_level}</span>", unsafe_allow_html=True)
         st.markdown(f"**Age:** {age}")

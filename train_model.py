@@ -27,12 +27,12 @@ ecg_data = ecg_data.dropna(thresh=int(ecg_data.shape[1] * 0.8)).reset_index(drop
 heart_data = heart_data.reset_index(drop=True)
 
 # use the first 200 patients data
-ecg_data = ecg_data.iloc[:200]
-heart_data = heart_data.iloc[:200]
+# ecg_data = ecg_data.iloc[:200]
+# heart_data = heart_data.iloc[:200]
 
 # combine datasets and fill any blanks with 0 
 data = pd.concat([ecg_data, heart_data], axis=1)
-data.fillna(0, inplace=True)
+data.fillna(data.median(), inplace=True)
 
 # all features (age, ecg, chol)
 X = data.drop(columns=["label", "target"], errors="ignore")
@@ -57,4 +57,5 @@ print("\nClassification Report:\n", classification_report(y_test, y_pred))
 # save model and scaler
 joblib.dump(model, "heart_disease_rf_model.pkl")
 joblib.dump(scaler, "scaler.pkl")
+joblib.dump(X.columns.tolist(), "features.pkl")
 print("Model and scaler saved!")
