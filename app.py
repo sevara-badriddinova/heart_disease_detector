@@ -1,59 +1,81 @@
 import streamlit as st
 import pandas as pd
-import joblib
 import numpy as np
+import joblib
 
-# Load trained model and scaler
+# Load the trained model and scaler
 model = joblib.load("heart_disease_rf_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
-st.title("Heart Disease Risk Predictor")
-st.write("Upload ECG features and patient info to predict heart disease risk.")
+st.set_page_config(page_title="Heart Disease Risk Detector", layout="centered")
+st.title("❤️ Heart Disease Risk Detector")
+st.markdown("Upload ECG features and patient info **OR** manually enter the data below.")
 
-uploaded_ecg = st.file_uploader("Upload ECG Features CSV", type=["csv"])
-uploaded_patient = st.file_uploader("Upload Heart Disease Patient Info CSV", type=["csv"])
+# --- Upload Section ---
+st.subheader("📤 Upload ECG Features CSV")
+ec_data_file = st.file_uploader("Upload ECG features", type=["csv"], key="ecg")
 
-if uploaded_ecg and uploaded_patient:
-    ecg_df = pd.read_csv(uploaded_ecg)
-    patient_df = pd.read_csv(uploaded_patient)
+st.subheader("📤 Upload Heart Disease Info CSV")
+hd_data_file = st.file_uploader("Upload heart disease info", type=["csv"], key="hd")
 
-    ecg_df.columns = ecg_df.columns.str.strip().str.lower()
-    patient_df.columns = patient_df.columns.str.strip().str.lower()
+# --- Manual Input Section ---
+st.subheader("📝 Or Manually Enter Patient Data")
+manual_input = st.checkbox("Manually enter patient data")
 
-    # Drop ECG rows with too many NaNs
-    ecg_df = ecg_df.dropna(thresh=int(ecg_df.shape[1] * 0.8)).reset_index(drop=True)
-    patient_df = patient_df.reset_index(drop=True)
+if manual_input:
+    age = st.number_input("🧓 Age", min_value=1, max_value=120, step=1)
+    sex = st.selectbox("🧬 Sex", ["Male", "Female"])
+    chol = st.number_input("🩸 Cholesterol (mg/dl)", min_value=100, max_value=600, step=1)
+    ecg_result = st.selectbox("📈 ECG Result", [0, 1, 2])
 
-    # Align row counts
-    min_len = min(len(ecg_df), len(patient_df))
-    ecg_df = ecg_df.iloc[:min_len]
-    patient_df = patient_df.iloc[:min_len]
+    if st.button("🔍 Predict from Manual Input"):
+        sex_bin = 1 if sex == "Male" else 0
+        ecg_input = [11]*15  # Placeholder ECG values
 
-    # Combine and fill NaNs
-    combined = pd.concat([ecg_df, patient_df], axis=1)
-    combined.fillna(0, inplace=True)
+        input_data = pd.DataFrame([[
+            *ecg_input, age, sex_bin, 0, 120, chol, 0, 0, 150, 0, 1.0, 1, 0, 1
+        ]], columns=[
+            "ecg_r_peaks", "ecg_q_peaks", "ecg_s_peaks", "ecg_r_onsets", "ecg_t_peaks", "ecg_p_onsets",
+            "ecg_t_onsets", "ecg_r_offsets", "hrv_rmssd", "hrv_meannn", "hrv_sdnn", "hrv_cvnn", "hrv_lf",
+            "hrv_hf", "hrv_lfhf", "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", "thalach",
+            "exang", "oldpeak", "slope", "ca", "thal"
+        ])
 
-    # Keep original for displaying
-    display_data = combined.copy()
+        input_scaled = scaler.transform(input_data)
+        prediction = model.predict(input_scaled)[0]
 
-    # Drop label/target before scaling
-    X = combined.drop(columns=["target", "label"], errors="ignore")
+        risk_level = "High" if prediction == 1 else "Low"
+        color = "red" if prediction == 1 else "green"
+
+        st.markdown("## 🧾 Patient Risk Assessment")
+        st.markdown(f"**Heart Disease Risk Level:** <span style='color:{color}; font-weight:bold;'>{risk_level}</span>", unsafe_allow_html=True)
+        st.markdown(f"**Age:** {age}")
+        st.markdown(f"**Sex:** {sex}")
+        st.markdown(f"**Cholesterol:** {chol} mg/dl")
+        st.markdown(f"**ECG Result:** {ecg_result}")
+
+elif ec_data_file and hd_data_file:
+    ecg_df = pd.read_csv(ec_data_file)
+    hd_df = pd.read_csv(hd_data_file)
+    df = pd.concat([ecg_df.reset_index(drop=True), hd_df.reset_index(drop=True)], axis=1)
+    df.fillna(0, inplace=True)
+
+    X = df.drop(columns=["label", "target"], errors="ignore")
+    X.columns = X.columns.str.lower()
+    expected_columns = scaler.feature_names_in_
+    X = X[expected_columns]
     X_scaled = scaler.transform(X)
-
-    # Predict
     predictions = model.predict(X_scaled)
-    prediction_probs = model.predict_proba(X_scaled)[:, 1]  # Probability of class 1
 
-    st.subheader("Prediction Results")
-    for i, (row, pred, prob) in enumerate(zip(display_data.iterrows(), predictions, prediction_probs)):
-        index, data = row
-        risk_level = "High" if pred == 1 else "Low"
+    st.subheader("📊 Batch Prediction Results")
+    for idx, pred in enumerate(predictions):
+        row = df.iloc[idx]
+        risk = "High" if pred == 1 else "Low"
+        color = "red" if pred == 1 else "green"
+        st.markdown(f"### Patient {idx+1}")
+        st.markdown(f"**Heart Disease Risk Level:** <span style='color:{color}; font-weight:bold;'>{risk}</span>", unsafe_allow_html=True)
+        st.markdown(f"**Age:** {int(row['age'])}")
+        st.markdown(f"**Sex:** {'Male' if row['sex'] == 1 else 'Female'}")
+        st.markdown(f"**Cholesterol:** {row['chol']} mg/dl")
+        st.markdown(f"**ECG Result:** {row['restecg'] if 'restecg' in row else 'N/A'}")
         st.markdown("---")
-        st.write(f"**Patient {i + 1}**")
-        st.write(f"- Heart disease risk level: {risk_level} ({prob * 100:.1f}%)")
-        st.write(f"- Age: {data['age']}")
-        st.write(f"- Sex: {'Male' if data['sex'] == 1 else 'Female'}")
-        st.write(f"- Cholesterol: {data['chol']}")
-        st.write(f"- ECG Result: {data.get('restecg', 'N/A')}")
-else:
-    st.warning("Please upload both ECG and patient info CSV files to proceed.")
