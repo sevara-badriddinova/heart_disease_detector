@@ -7,6 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 import zipfile
 import os
+import matplotlib as plt
 
 # Load ECG and heart disease datasets
 ecg_data = pd.read_csv("ecg_features.csv")
@@ -40,17 +41,31 @@ normal_perg.columns = ["age", "sex"]
 normal_perg["sex"] = normal_perg["sex"].map({"Male": 1, "Female": 0})
 normal_perg["target"] = 0
 normal_perg.dropna(subset=["age", "sex"], inplace=True)
-normal_perg["cp"] = 0
 normal_perg["chol"] = normal_perg["age"] * 5
 normal_perg["fbs"] = 0
-normal_perg["restecg"] = 0
-normal_perg["thalach"] = 180
+normal_perg["restecg"] = np.random.choice([0], size=len(normal_perg))
+normal_perg["cp"] = np.random.choice([0, 1], size=len(normal_perg))
+normal_perg["thalach"] = np.random.normal(170, 10, size=len(normal_perg)).clip(130, 200)
 
 # Only keep training features
 selected_features = ["age", "sex", "cp", "chol", "fbs", "restecg", "thalach", "target"]
 heart_df = data[selected_features].copy()
 combined_df = pd.concat([heart_df, normal_perg], ignore_index=True)
 combined_df.fillna(combined_df.median(), inplace=True)
+
+
+# Optional: oversample high-risk (target=1) patients
+high_risk = combined_df[combined_df['target'] == 1]
+
+# You can increase n=50, 100, or 200 depending on how many you have
+boosted_high_risk = high_risk.sample(n=100, replace=True, random_state=42)
+
+# Add them to your training data
+combined_df = pd.concat([combined_df, boosted_high_risk], ignore_index=True)
+
+print(f"Oversampled high-risk examples: {len(boosted_high_risk)} added.")
+print(f"Total training set size: {len(combined_df)} rows.")
+
 
 # Split features and labels
 X = combined_df.drop(columns=["target"])
@@ -64,7 +79,7 @@ X_scaled = scaler.fit_transform(X)
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
 # Train with class balancing
-model = RandomForestClassifier(n_estimators=100, random_state=42, class_weight='balanced')
+model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=42, class_weight='balanced')
 model.fit(X_train, y_train)
 
 y_pred = model.predict(X_test)
