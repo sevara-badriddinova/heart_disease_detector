@@ -4,10 +4,9 @@ import numpy as np
 import joblib
 
 # Load the trained model and scaler
-model = joblib.load("heart_disease_rf_model.pkl")
-scaler = joblib.load("scaler.pkl")
-
-feature_names = joblib.load("features.pkl")
+model = joblib.load("heart_disease_rf_simplified.pkl")
+scaler = joblib.load("scaler_simplified.pkl")
+feature_names = joblib.load("features_simplified.pkl")
 # Set default ECG values as the mean values from training set
 default_ecg_values = [
     12.28, 12.28, 12.28, 12.28, 12.28,
@@ -15,7 +14,11 @@ default_ecg_values = [
     153.09, 0.15, 0.0, 0.04, 0.0  # replaced NaNs with 0.0
 ]
 
-st.set_page_config(page_title="Heart Disease Risk Detector", layout="centered")
+st.set_page_config(
+    page_title="Heart Disease Risk Detector",
+    page_icon="❤️", 
+    layout="centered"
+)
 st.title("❤️ Heart Disease Risk Detector")
 st.markdown("Upload ECG features and patient info **OR** manually enter the data below.")
 
@@ -36,30 +39,44 @@ if manual_input:
         st.warning("Note: This age is outside the range of training data (29–77). Prediction may be inaccurate.")
     sex = st.selectbox("🧬 Sex", ["Male", "Female"])
     chol = st.number_input("🩸 Cholesterol (mg/dl)", min_value=100, max_value=600, step=1)
-    ecg_result = st.selectbox("📈 ECG Result", [0, 1, 2])
+    ecg_options = {
+        0: "0 - Normal",
+        1: "1 - ST-T wave abnormality",
+        2: "2 - Probable/definite left ventricular hypertrophy"
+    }
+    ecg_result_label = st.selectbox("📈 ECG Result", list(ecg_options.values()))
+    ecg_result = int(ecg_result_label.split(" - ")[0])
+
+    cp_options = {
+        0: "0 - Typical angina",
+        1: "1 - Atypical angina",
+        2: "2 - Non-anginal pain",
+        3: "3 - Asymptomatic"
+    }
+    cp_label = st.selectbox("💥 Chest Pain Type (cp)", list(cp_options.values()))
+    cp = int(cp_label.split(" - ")[0])
+
+    fbs_label = st.selectbox("🍬 Fasting Blood Sugar > 120 mg/dl (fbs)", ["0 - False", "1 - True"])
+    fbs = int(fbs_label.split(" - ")[0])
+
+    thalach = st.number_input("🏃 Max Heart Rate Achieved (thalach)", min_value=60, max_value=220, step=1)
 
     if st.button("🔍 Predict from Manual Input"):
         sex_bin = 1 if sex == "Male" else 0
-        ecg_input = default_ecg_values
-
         input_data = pd.DataFrame([[
-            *ecg_input, age, sex_bin, 0, 120, chol, 0, 0, 150, 0, 1.0, 1, 0, 1
-        ]], columns=[
-            "ecg_r_peaks", "ecg_q_peaks", "ecg_s_peaks", "ecg_r_onsets", "ecg_t_peaks", "ecg_p_onsets",
-            "ecg_t_onsets", "ecg_r_offsets", "hrv_rmssd", "hrv_meannn", "hrv_sdnn", "hrv_cvnn", "hrv_lf",
-            "hrv_hf", "hrv_lfhf", "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", "thalach",
-            "exang", "oldpeak", "slope", "ca", "thal"
-        ])
+            age, sex_bin, cp, chol, fbs, ecg_result, thalach
+        ]], columns=feature_names)
 
         input_scaled = scaler.transform(input_data)
         prediction = model.predict(input_scaled)[0]
+        prob = model.predict_proba(input_scaled)[0][1]
 
         risk_level = "High" if prediction == 1 else "Low"
         color = "red" if prediction == 1 else "green"
 
-        prob = model.predict_proba(input_scaled)[0][1]
         if 0.4 < prob < 0.6:
             st.warning("⚠️ The model is unsure about this prediction. Consider reviewing inputs or using more data.")
+
         st.markdown(f"**Risk Probability:** {prob:.2%}")
         st.markdown("## 🧾 Patient Risk Assessment")
         st.markdown(f"**Heart Disease Risk Level:** <span style='color:{color}; font-weight:bold;'>{risk_level}</span>", unsafe_allow_html=True)
@@ -67,6 +84,9 @@ if manual_input:
         st.markdown(f"**Sex:** {sex}")
         st.markdown(f"**Cholesterol:** {chol} mg/dl")
         st.markdown(f"**ECG Result:** {ecg_result}")
+        st.markdown(f"**Chest Pain Type:** {cp}")
+        st.markdown(f"**Fasting Blood Sugar > 120 mg/dl:** {fbs}")
+        st.markdown(f"**Max Heart Rate Achieved:** {thalach}")
 
 elif ec_data_file and hd_data_file:
     ecg_df = pd.read_csv(ec_data_file)
@@ -76,8 +96,7 @@ elif ec_data_file and hd_data_file:
 
     X = df.drop(columns=["label", "target"], errors="ignore")
     X.columns = X.columns.str.lower()
-    expected_columns = scaler.feature_names_in_
-    X = X[expected_columns]
+    X = X[feature_names]
     X_scaled = scaler.transform(X)
     predictions = model.predict(X_scaled)
 
@@ -91,5 +110,8 @@ elif ec_data_file and hd_data_file:
         st.markdown(f"**Age:** {int(row['age'])}")
         st.markdown(f"**Sex:** {'Male' if row['sex'] == 1 else 'Female'}")
         st.markdown(f"**Cholesterol:** {row['chol']} mg/dl")
+        st.markdown(f"**Chest Pain:** {row['cp']}")
+        st.markdown(f"**Fasting Sugar:** {row['fbs']}")
+        st.markdown(f"**Max Heart Rate:** {row['thalach']}")
         st.markdown(f"**ECG Result:** {row['restecg'] if 'restecg' in row else 'N/A'}")
         st.markdown("---")
