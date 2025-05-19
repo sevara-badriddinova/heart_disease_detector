@@ -24,16 +24,19 @@ st.set_page_config(
 with st.spinner("Waking up the app... Please wait a few seconds."):
     time.sleep(5)  # simulate some load time
 
+st.set_page_config(page_title="Heart Disease Risk Detector", layout="centered")
+
 st.markdown(
     """
     <style>
-    html, body, [class*="css"]  {
+    html, body, [class*="css"] {
         font-family: 'Arial', sans-serif;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 st.title("❤️ Heart Disease Risk Detector")
 st.markdown("Upload ECG features and patient info **OR** manually enter the data below.")
