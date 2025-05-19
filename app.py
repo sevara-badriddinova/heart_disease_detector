@@ -4,9 +4,6 @@ import numpy as np
 import joblib
 import time
 
-with st.spinner("Waking up the app... Please wait a few seconds."):
-    time.sleep(5)  # simulate some load time
-    
 # Load the trained model and scaler
 model = joblib.load("heart_disease_rf_simplified.pkl")
 scaler = joblib.load("scaler_simplified.pkl")
@@ -23,6 +20,10 @@ st.set_page_config(
     page_icon="❤️", 
     layout="centered"
 )
+
+with st.spinner("Waking up the app... Please wait a few seconds."):
+    time.sleep(5)  # simulate some load time
+    
 st.title("❤️ Heart Disease Risk Detector")
 st.markdown("Upload ECG features and patient info **OR** manually enter the data below.")
 
