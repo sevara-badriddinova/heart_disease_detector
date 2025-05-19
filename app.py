@@ -24,8 +24,6 @@ st.set_page_config(
 with st.spinner("Waking up the app... Please wait a few seconds."):
     time.sleep(5)  # simulate some load time
 
-st.set_page_config(page_title="Heart Disease Risk Detector", layout="centered")
-
 st.markdown(
     """
     <style>
