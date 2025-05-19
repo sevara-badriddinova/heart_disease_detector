@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import time
 
+with st.spinner("Waking up the app... Please wait a few seconds."):
+    time.sleep(5)  # simulate some load time
+    
 # Load the trained model and scaler
 model = joblib.load("heart_disease_rf_simplified.pkl")
 scaler = joblib.load("scaler_simplified.pkl")
