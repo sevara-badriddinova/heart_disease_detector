@@ -219,12 +219,6 @@ Issues and PRs are welcome. Please open an issue describing the change and inclu
 
 ---
 
-## License
-
-Choose a license (e.g., MIT, Apache-2.0) and add `LICENSE` to the repo.
-
----
-
 ## Acknowledgments
 
 - Biomedical signals community for open-source ECG tooling and HRV literature.
